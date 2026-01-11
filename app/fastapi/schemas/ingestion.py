@@ -14,7 +14,7 @@ from app.fastapi.schemas.providers import KalshiConfig, PolymarketConfig
 class IngestionBase(BaseModel):
     provider : str
     search : SearchType
-    query : str
+    search_term : str
 
 class KalshiIngestion(IngestionBase):
     provider : Literal['kalshi'] # type: ignore

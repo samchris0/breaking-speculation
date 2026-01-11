@@ -6,11 +6,11 @@ async def dispatcher(req : IngestionRequest):
     match req:
         case PolymarketIngestion():
             client = PolymarketClient()
-
             try:
                 await polymarket_handler(req, client)
             finally:
                 await client.close()
+        
         case KalshiIngestion():
             pass
         

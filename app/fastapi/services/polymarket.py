@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 
 from app.fastapi.core.polymarket_client import PolymarketClient, PolymarketRateLimit, PolymarketUnavailable
 from app.fastapi.schemas.ingestion import IngestionRequest
+from app.fastapi.schemas.intent import ExactSearch, KeywordSearch
 
 # Define semaphore for this module to limit requests
 polymarket_sem = asyncio.Semaphore(10)
@@ -25,19 +26,18 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
     
     search = req.search
 
-    if search == 'exact':
-        return await polymarket_search_event(req, client)
-    elif search == 'keyword':
-        return await polymarket_search_keyword(req, client)
+    if isinstance(search, ExactSearch):
+        return await polymarket_search_event(slug = req.search_term, client = client)
+    elif isinstance(search, KeywordSearch):
+        return await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client) #type:ignore 
 
 
-async def polymarket_search_event(req: IngestionRequest, client: PolymarketClient) -> List[Dict]:
+async def polymarket_search_event(slug: str, client: PolymarketClient) -> List[Dict]:
     """
     return all markets in an event in the format described in polymarker_handler
     """
 
     #Query metadata of event from Gamma API
-    slug = req.query
     resp = await polymarket_query_event_slug(slug, client.gamma)
 
     # Parse metadata from response
@@ -49,13 +49,13 @@ async def polymarket_search_event(req: IngestionRequest, client: PolymarketClien
     return data
 
 
-async def polymarket_search_keyword(req: IngestionRequest, client: PolymarketClient) -> List[Dict]:
+async def polymarket_search_keyword(keyword : str, limit : int, client: PolymarketClient) -> List[Dict]:
     """
     returns all markets related to keyword search in the form described by polymarket_handler
     """
 
     #Get slugs relating to keyword search
-    slugs = await polymarket_get_events_from_keyword(req, client.gamma)
+    slugs = await polymarket_get_events_from_keyword(keyword, limit, client.gamma)
 
     resps = await asyncio.gather(*(polymarket_query_event_slug(slug, client.gamma) for slug in slugs))
 
@@ -103,15 +103,15 @@ async def polymarket_query_event_slug(slug: str, client: httpx.AsyncClient) -> D
     
     return resp
 
-
-async def polymarket_get_events_from_keyword(req: IngestionRequest, client: httpx.AsyncClient) -> List[str]:
+async def polymarket_get_events_from_keyword(keyword: str, limit: int, client: httpx.AsyncClient) -> List[str]:
     """
     Return polymarket slugs that match keyword search
     """
 
     ENDPOINT = '/public_search'
     PARAMS = {
-        'q' : req.query
+        'q' : keyword,
+        'limit_per_type' : limit
     }
 
     resp = await polymarket_get(client=client, endpoint=ENDPOINT, params=PARAMS)

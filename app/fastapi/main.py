@@ -6,13 +6,10 @@ from fastapi import FastAPI
 
 from app.fastapi.api.routes import ingestion
 
-
 #Initialize app
 app = FastAPI()
 
 #Add ingestions route
 app.include_router(ingestion.router)
 
-#Change this to initialize from db folder?
-#redis = redis.from_url("redis://localhost")
 

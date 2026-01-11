@@ -16,8 +16,8 @@ class ExactSearch(BaseModel):
 
 class KeywordSearch(BaseModel):
     kind : Literal['keyword']
-    query : str
     limit : Optional[int] = 10
+    keyword : str
 
 SearchType = Annotated[
             ExactSearch | KeywordSearch,
