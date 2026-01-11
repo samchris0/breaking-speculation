@@ -2,17 +2,18 @@
 This module creates a base model for data ingestion
 """
 
-from pydantic import BaseModel
 from datetime import date
-
 from typing import Literal, Union
 
-from app.fastapi.schemas.intent import SearchIntent
+from pydantic import BaseModel, Field
+from typing_extensions import Annotated
+
+from app.fastapi.schemas.intent import SearchType
 from app.fastapi.schemas.providers import KalshiConfig, PolymarketConfig
 
 class IngestionBase(BaseModel):
     provider : str
-    intent : SearchIntent
+    search : SearchType
     query : str
 
 class KalshiIngestion(IngestionBase):
@@ -23,11 +24,8 @@ class PolymarketIngestion(IngestionBase):
     provider : Literal['polymarket'] # type: ignore
     config: type[PolymarketConfig] = PolymarketConfig
 
-IngestionRequest = Union[
-    KalshiIngestion,
-    PolymarketIngestion]
-
-
-
-
-    
+IngestionRequest = Annotated[
+        KalshiIngestion | PolymarketIngestion,
+        Field(discriminator="provider")
+]
+   

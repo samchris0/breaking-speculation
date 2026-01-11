@@ -8,7 +8,7 @@ router = APIRouter(
     tags=["ingestion"]
 )
 
-@router.get("/")
+@router.post("/")
 async def ingestor(req : IngestionRequest):
-    start_ingestion.delay(req.model_dump()) # type: ignore[attr-defined]
-    return {"status": "queued"}
+    task = start_ingestion.delay(req.model_dump()) # type: ignore[attr-defined]
+    return {"status": "queued", "task_id": task.id}

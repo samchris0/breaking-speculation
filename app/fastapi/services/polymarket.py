@@ -23,15 +23,15 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
 
     """
     
-    intent = req.intent
+    search = req.search
 
-    if intent == 'exact':
-        return await polymarket_get_event(req, client)
-    elif intent == 'keyword':
+    if search == 'exact':
+        return await polymarket_search_event(req, client)
+    elif search == 'keyword':
         return await polymarket_search_keyword(req, client)
 
 
-async def polymarket_get_event(req: IngestionRequest, client: PolymarketClient) -> List[Dict]:
+async def polymarket_search_event(req: IngestionRequest, client: PolymarketClient) -> List[Dict]:
     """
     return all markets in an event in the format described in polymarker_handler
     """

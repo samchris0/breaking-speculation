@@ -5,16 +5,21 @@ Alternatively, we can specify a search to be keyword, in which case the provider
 keyword and markets will be returned up to the specified limit.
 """
 
-from pydantic import BaseModel
 from typing import Literal, Optional
 
-class ExactIntent(BaseModel):
-    intent : Literal['exact']
+from pydantic import BaseModel, Field
+from typing_extensions import Annotated
+
+class ExactSearch(BaseModel):
+    kind : Literal['exact']
     event_id : str
 
-class KeywordIntent(BaseModel):
-    intent : Literal['keyword']
+class KeywordSearch(BaseModel):
+    kind : Literal['keyword']
     query : str
     limit : Optional[int] = 10
 
-SearchIntent = ExactIntent | KeywordIntent
+SearchType = Annotated[
+            ExactSearch | KeywordSearch,
+            Field(discriminator="kind")
+            ]
