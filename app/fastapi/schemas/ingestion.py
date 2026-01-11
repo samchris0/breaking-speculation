@@ -7,8 +7,8 @@ from datetime import date
 
 from typing import Literal, Union
 
-from intent import SearchIntent
-from providers import KalshiConfig, PolymarketConfig
+from app.fastapi.schemas.intent import SearchIntent
+from app.fastapi.schemas.providers import KalshiConfig, PolymarketConfig
 
 class IngestionBase(BaseModel):
     provider : str
@@ -17,11 +17,11 @@ class IngestionBase(BaseModel):
 
 class KalshiIngestion(IngestionBase):
     provider : Literal['kalshi'] # type: ignore
-    config = KalshiConfig
+    config: type[KalshiConfig] = KalshiConfig
 
 class PolymarketIngestion(IngestionBase):
     provider : Literal['polymarket'] # type: ignore
-    config = PolymarketConfig
+    config: type[PolymarketConfig] = PolymarketConfig
 
 IngestionRequest = Union[
     KalshiIngestion,

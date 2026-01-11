@@ -2,12 +2,11 @@ import asyncio
 import httpx
 from typing import Any, Dict, List
 
-from core.polymarket_client import PolymarketClient, PolymarketRateLimit, PolymarketUnavailable
-from schemas.ingestion import IngestionRequest
+from app.fastapi.core.polymarket_client import PolymarketClient, PolymarketRateLimit, PolymarketUnavailable
+from app.fastapi.schemas.ingestion import IngestionRequest
 
 # Define semaphore for this module to limit requests
 polymarket_sem = asyncio.Semaphore(10)
-
 
 async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
     """

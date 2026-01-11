@@ -1,7 +1,6 @@
-from core.polymarket_client import PolymarketClient
-from schemas.ingestion import IngestionRequest
-
-from polymarket import polymarket_handler
+from app.fastapi.core.polymarket_client import PolymarketClient
+from app.fastapi.schemas.ingestion import IngestionRequest
+from app.fastapi.services.polymarket import polymarket_handler
 
 async def dispatcher(req : IngestionRequest):
     provider = req.provider

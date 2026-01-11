@@ -6,10 +6,9 @@ import asyncio
 
 from pydantic import TypeAdapter
 
-from core.celery_app import celery_app
-from schemas.ingestion import IngestionRequest
-from services.dispatcher import dispatcher
-
+from app.fastapi.core.celery_app import celery_app
+from app.fastapi.schemas.ingestion import IngestionRequest
+from app.fastapi.services.dispatcher import dispatcher
 
 @celery_app.task(bind=True)
 def start_ingestion(self, req_dict):

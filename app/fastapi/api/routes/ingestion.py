@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from tasks.ingestion import start_ingestion
-from schemas.ingestion import IngestionRequest
+from app.fastapi.tasks.ingestion import start_ingestion
+from app.fastapi.schemas.ingestion import IngestionRequest
 
 router = APIRouter(
     prefix="/ingestion",
