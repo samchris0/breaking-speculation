@@ -12,12 +12,10 @@ from typing_extensions import Annotated
 
 class ExactSearch(BaseModel):
     kind : Literal['exact']
-    event_id : str
 
 class KeywordSearch(BaseModel):
     kind : Literal['keyword']
     limit : Optional[int] = 10
-    keyword : str
 
 SearchType = Annotated[
             ExactSearch | KeywordSearch,

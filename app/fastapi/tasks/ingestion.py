@@ -14,5 +14,7 @@ from app.fastapi.services.dispatcher import dispatcher
 def start_ingestion(self, req_dict):
     adapter = TypeAdapter(IngestionRequest)
     req = adapter.validate_python(req_dict)
-    asyncio.run(dispatcher(req))
+    results = asyncio.run(dispatcher(req))
+    return results
+
 

@@ -61,7 +61,7 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
 
     data = []
     for resp in resps:
-        data.append(polymarket_get_market_ids(resp))
+        data.extend(polymarket_get_market_ids(resp))
     
     data = await asyncio.gather(*(polymarket_price_history(datum, client.clob) for datum in data))
     
