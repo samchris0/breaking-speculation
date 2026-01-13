@@ -1,11 +1,5 @@
-import asyncio
-import atexit
-import httpx
-
 import dash
 from dash import Dash, html, dcc
-
-from app.dash.utils.http_client import async_client
 
 # Initialize the app
 app = Dash(__name__, use_pages=True, suppress_callback_exceptions=True)

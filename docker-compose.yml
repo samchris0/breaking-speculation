@@ -11,6 +11,8 @@ services:
       - redis
     ports:
       - "8000:8000"
+    environment:
+      - FASTAPI_BASE_URL=http://api:8000
 
   worker:
     build: .
@@ -24,7 +26,7 @@ services:
 
   dash:
     build: .
-    command: python app/dash/app.py
+    command: python -m app.dash.main
     ports:
       - "8050:8050"
     depends_on:
