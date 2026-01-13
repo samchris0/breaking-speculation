@@ -6,6 +6,8 @@ services:
 
   api:
     build: .
+    volumes:
+      - ./app:/app
     command: uvicorn app.fastapi.main:app --host 0.0.0.0 --port 8000
     depends_on:
       - redis
@@ -26,6 +28,8 @@ services:
 
   dash:
     build: .
+    volumes:
+      - ./app:/app
     command: python -m app.dash.main
     ports:
       - "8050:8050"

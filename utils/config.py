@@ -1,0 +1,6 @@
+import os
+
+DASH_BASE_URL = os.getenv("DASH_BASE_URL", "http://dash:8050")
+FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://api:8000")
+REDDIS_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+REDDIS_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
