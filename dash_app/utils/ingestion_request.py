@@ -11,14 +11,14 @@ def ingestion_request(provider: str, search_term: str, search: str, limit: int =
     search: search type, "exact" or "keyword
 
     """
-
+    
     if search == 'exact':
         search_dict = {
-            "search": "exact",
+            "kind": "exact",
         }
     elif search == 'keyword':
         search_dict = {
-            "intent": "keyword",
+            "kind": "keyword",
             "limit": limit
         }
     else:
@@ -28,10 +28,12 @@ def ingestion_request(provider: str, search_term: str, search: str, limit: int =
     payload = {
         "provider": provider,
         "search_term": search_term,
-        "search": search
+        "search": search_dict
     }
+
+    print(payload)
 
     ingestion = requests.post(f"{FASTAPI_BASE_URL}/ingestion", json=payload)
     ingestion.raise_for_status()
 
-    return ingestion.json().status
+    return ingestion.json()

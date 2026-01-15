@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Literal, Optional
 
 class KalshiConfig(BaseModel):
-    base_url : str 
+    base_url : str = ""
 
 
 class PolymarketConfig(BaseModel):

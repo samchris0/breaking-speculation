@@ -3,6 +3,8 @@ from fastapi_app.schemas.ingestion import IngestionRequest, PolymarketIngestion,
 from fastapi_app.services.polymarket import polymarket_handler
 
 async def dispatcher(req : IngestionRequest):
+# Checks for service provider and dispatches request to the correct handler for API queries
+
     match req:
         case PolymarketIngestion():
             client = PolymarketClient()

@@ -18,7 +18,7 @@ layout = html.Div([
     html.Div(["Select a provider: ",
 
             dcc.RadioItems(
-                options=providers,
+                options=[{'label': k, 'value': v} for k, v in providers.items()],
                 id = "provider"
             )
     ]),
@@ -41,31 +41,38 @@ layout = html.Div([
 ])
 
 @callback(
-    Input('provider','value'),
-    Output('provider-search-options','options')
+    Output('provider-search-options','options'),
+    Input('provider','value')
 )
 def display_search_options(provider):
-    return provider_searches.get(provider)
+    options = provider_searches.get(provider)
+
+    if isinstance(options, dict):
+        return [{'label': k, 'value': v} for k,v in options.items()]
+    else:
+        return []
 
 @callback(
         Output('display-results','children'),
         Input('make-query','n_clicks'),
         State('provider','value'),
         State('search-term','value'),
-        State('provider-search-options', 'value')
+        State('provider-search-options', 'value'),
+        prevent_initial_call=True
 )
 def make_query(_, provider, search_term, search):
 
-    data = ingestion_request(provider=provider,search_term=search_term,search=search)
+    task = ingestion_request(provider=provider,search_term=search_term,search=search)
 
-    if not data:
+
+    if not task:
         return "No results found"
 
     return [
         html.H3("Results"),
         html.Div(
             html.Ul(
-                [html.Li(datum) for datum in data],
+                [html.Li(item) for item in task],
                 className = "results-list"
             )
         )

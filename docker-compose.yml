@@ -7,8 +7,8 @@ services:
   api:
     build: .
     volumes:
-      - ./app:/app
-    command: uvicorn app.fastapi.main:app --host 0.0.0.0 --port 8000
+      - ./fastapi_app:/app/fastapi_app
+    command: uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/fastapi_app
     depends_on:
       - redis
     ports:
@@ -19,9 +19,11 @@ services:
   worker:
     build: .
     user: "1000:1000"
-    command: celery -A app.fastapi.core.celery_app worker --loglevel=info
+    command: celery -A fastapi_app.core.celery_app worker --loglevel=info
     depends_on:
       - redis
+    volumes:
+      - ./fastapi_app:/app/fastapi_app
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
@@ -29,8 +31,8 @@ services:
   dash:
     build: .
     volumes:
-      - ./app:/app
-    command: python -m app.dash.main
+      - ./dash_app:/app/dash_app
+    command: python -m dash_app.main
     ports:
       - "8050:8050"
     depends_on:

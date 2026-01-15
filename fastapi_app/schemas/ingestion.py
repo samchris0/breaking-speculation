@@ -18,14 +18,14 @@ class IngestionBase(BaseModel):
 
 class KalshiIngestion(IngestionBase):
     provider : Literal['kalshi'] # type: ignore
-    config: type[KalshiConfig] = KalshiConfig
+    config: KalshiConfig = KalshiConfig()
 
 class PolymarketIngestion(IngestionBase):
     provider : Literal['polymarket'] # type: ignore
-    config: type[PolymarketConfig] = PolymarketConfig
+    config: PolymarketConfig = PolymarketConfig()
 
 IngestionRequest = Annotated[
-        KalshiIngestion | PolymarketIngestion,
+        Union[KalshiIngestion, PolymarketIngestion],
         Field(discriminator="provider")
 ]
    

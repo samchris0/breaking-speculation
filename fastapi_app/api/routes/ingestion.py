@@ -13,7 +13,8 @@ router = APIRouter(
 # General ingestion request
 @router.post("/")
 async def ingestor(req : IngestionRequest):
-    task = start_ingestion.delay(req.model_dump()) # type: ignore[attr-defined]
+    # Serialize req model and send to ingestion task, mode=json to handle nested classes
+    task = start_ingestion.delay(req.model_dump(mode="json")) # type: ignore[attr-defined]
     return {"status": "queued", "task_id": task.id}
 
 # Check ingestion task

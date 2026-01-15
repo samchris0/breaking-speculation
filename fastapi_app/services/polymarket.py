@@ -1,13 +1,11 @@
 import asyncio
 import httpx
+import json
 from typing import Any, Dict, List
 
 from fastapi_app.core.polymarket_client import PolymarketClient, PolymarketRateLimit, PolymarketUnavailable
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.schemas.intent import ExactSearch, KeywordSearch
-
-# Define semaphore for this module to limit requests
-polymarket_sem = asyncio.Semaphore(10)
 
 async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
     """
@@ -23,56 +21,57 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
         }
 
     """
-    
+
+    # Define semaphore for this module to limit requests
+    polymarket_sem = asyncio.Semaphore(10) 
+
     search = req.search
 
     if isinstance(search, ExactSearch):
-        return await polymarket_search_event(slug = req.search_term, client = client)
+        return await polymarket_search_event(slug = req.search_term, client = client, semaphore = polymarket_sem)
     elif isinstance(search, KeywordSearch):
-        return await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client) #type:ignore 
+        return await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client, semaphore = polymarket_sem) #type:ignore 
 
 
-async def polymarket_search_event(slug: str, client: PolymarketClient) -> List[Dict]:
+async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore: asyncio.Semaphore) -> List[Dict]:
     """
     return all markets in an event in the format described in polymarker_handler
     """
 
-    #Query metadata of event from Gamma API
-    resp = await polymarket_query_event_slug(slug, client.gamma)
+    # Query metadata of event from Gamma API
+    event = await polymarket_query_event_slug(slug, client.gamma, semaphore)
 
     # Parse metadata from response
-    data = polymarket_get_market_ids(resp)
+    data = polymarket_get_market_ids(event)
 
     # Get price history from CLOB API
-    data = await asyncio.gather(*(polymarket_price_history(datum, client.clob) for datum in data))
+    data = await asyncio.gather(*(polymarket_price_history(datum, client.clob, semaphore) for datum in data))
 
     return data
 
-
-async def polymarket_search_keyword(keyword : str, limit : int, client: PolymarketClient) -> List[Dict]:
+async def polymarket_search_keyword(keyword : str, limit : int, client: PolymarketClient, semaphore: asyncio.Semaphore) -> List[Dict]:
     """
     returns all markets related to keyword search in the form described by polymarket_handler
     """
 
-    #Get slugs relating to keyword search
-    slugs = await polymarket_get_events_from_keyword(keyword, limit, client.gamma)
-
-    resps = await asyncio.gather(*(polymarket_query_event_slug(slug, client.gamma) for slug in slugs))
+    # Get list of events relating to keyword search
+    events = await polymarket_get_events_from_keyword(keyword, limit, client.gamma, semaphore)
 
     data = []
-    for resp in resps:
-        data.extend(polymarket_get_market_ids(resp))
+    for event in events:
+        # 
+        data.extend(polymarket_get_market_ids(event))
     
-    data = await asyncio.gather(*(polymarket_price_history(datum, client.clob) for datum in data))
+    data = await asyncio.gather(*(polymarket_price_history(datum, client.clob, semaphore) for datum in data))
     
     return data
 
 
-async def polymarket_get(client: httpx.AsyncClient, endpoint: str, *,params: dict | None = None,) -> Dict:
+async def polymarket_get(client: httpx.AsyncClient, semaphore: asyncio.Semaphore, endpoint: str, *,params: dict | None = None,) -> Dict:
     """
     async get request function with error handling
     """
-    async with polymarket_sem:
+    async with semaphore:
         try:
             resp = await client.get(endpoint, params=params)
         except httpx.TimeoutException as e:
@@ -92,40 +91,36 @@ async def polymarket_get(client: httpx.AsyncClient, endpoint: str, *,params: dic
     raise PolymarketUnavailable()
 
 
-async def polymarket_query_event_slug(slug: str, client: httpx.AsyncClient) -> Dict:
+async def polymarket_query_event_slug(slug: str, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> Dict:
     """
     Return polymarket event from slug
     """
 
     ENDPOINT = f'/events/slug/{slug}'
 
-    resp = await polymarket_get(client=client, endpoint=ENDPOINT)
+    resp = await polymarket_get(client=client, semaphore=semaphore, endpoint=ENDPOINT)
     
     return resp
 
-async def polymarket_get_events_from_keyword(keyword: str, limit: int, client: httpx.AsyncClient) -> List[str]:
+async def polymarket_get_events_from_keyword(keyword: str, limit: int, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> List[Dict]:
     """
     Return polymarket slugs that match keyword search
     """
 
-    ENDPOINT = '/public_search'
+    ENDPOINT = '/public-search'
     PARAMS = {
         'q' : keyword,
         'limit_per_type' : limit
     }
 
-    resp = await polymarket_get(client=client, endpoint=ENDPOINT, params=PARAMS)
+    resp = await polymarket_get(client=client, semaphore=semaphore, endpoint=ENDPOINT, params=PARAMS)
 
-    events = resp['events']
+    events = resp.get('events',[])
 
-    event_slugs = []
-    for event in events:
-        event_slugs.append(event['slug'])
-    
-    return event_slugs
+    return events
 
 
-async def polymarket_price_history(data: Dict, client: httpx.AsyncClient) -> Dict:
+async def polymarket_price_history(data: Dict, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> Dict:
     """
     Return price history for a given market and outcome
     """
@@ -136,28 +131,33 @@ async def polymarket_price_history(data: Dict, client: httpx.AsyncClient) -> Dic
             'interval':'max'
             }
 
-    resp = await polymarket_get(client=client, endpoint=ENDPOINT, params=PARAMS)
+    resp = await polymarket_get(client=client, semaphore=semaphore, endpoint=ENDPOINT, params=PARAMS)
 
-    data['history'] = resp['history']
+    data['history'] = resp.get('history',[])
 
     return data
 
 
-def polymarket_get_market_ids(resp: Dict[str, Any]) -> List[Dict]:
+def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
     """
     Takes events slug query response and extracts relevant data to query price history
     """
 
     data = []
-    markets = resp['markets']
+    markets = event['markets']
     for market in markets:
         question = market['question']
-        outcomes = market['outcomes']
-        tokenIds = market['clobTokenIds']
+        
+        # Polymarket API wraps these lists with a string "["...", "..."]"
+        outcomes = json.loads(market['outcomes'])
+        tokenIds = json.loads(market['clobTokenIds'])
+        
         for i in range(len(outcomes)):
             data.append({
                 'question':question,
                 'outcome':outcomes[i],
                 'tokenId':tokenIds[i]})
+
+    print(data)
 
     return data
