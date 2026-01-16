@@ -30,7 +30,7 @@ async def check_request(task_id: str):
         return {"status": "pending"}
     elif result.state == "FAILURE":
         return {"status": "failed", "error": str(result.result)}
-    else:
+    elif result.state == 'SUCCESS':
         
         # Get results from task_id
         data_bytes = await redis_client.get(task_id) 
@@ -40,7 +40,8 @@ async def check_request(task_id: str):
             data = json.loads(
                     zlib.decompress(data_bytes).decode("utf-8")
             )
-            return data
-        
+            return {'status': 'success', 'data': data}
         else:
-            return{'Error: Query finished sucessfully with no results'}
+            return{'Error: Query finished sucessfully with no results'}   
+    else:
+        return {"status": result.state.lower()}
