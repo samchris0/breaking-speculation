@@ -22,7 +22,7 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient):
 
     """
 
-    # Define semaphore for this module to limit requests
+    # Define semaphore for this module to limit requests, semaphore must be created in each event loop or asyncio.run will cause error
     polymarket_sem = asyncio.Semaphore(10) 
 
     search = req.search
@@ -135,6 +135,10 @@ async def polymarket_price_history(data: Dict, client: httpx.AsyncClient, semaph
 
     data['history'] = resp.get('history',[])
 
+    if data['history']:
+        # API returns results in long format [{t: ..., p: ...}, {t: ..., p: ...}]. Convert to wide to speed serialization
+        data['history'] = {key: [d[key] for d in data['history']] for key in data['history'][0]}
+
     return data
 
 
@@ -157,7 +161,5 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
                 'question':question,
                 'outcome':outcomes[i],
                 'tokenId':tokenIds[i]})
-
-    print(data)
 
     return data

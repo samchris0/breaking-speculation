@@ -37,6 +37,11 @@ layout = html.Div([
 
     html.Button('Make Query', id='make-query'),
     
+    #Save task_ids
+    dcc.Store(id='store-task-ids', data=[]),
+
+    dcc.Interval(id='result-polling', interval=100, n_intervals=0),
+
     html.Div(id='display-results')
 ])
 
@@ -58,21 +63,27 @@ def display_search_options(provider):
         State('provider','value'),
         State('search-term','value'),
         State('provider-search-options', 'value'),
+        State('store-task-ids','value'),
         prevent_initial_call=True
 )
-def make_query(_, provider, search_term, search):
+def make_query(_, provider, search_term, search, task_ids):
 
-    task = ingestion_request(provider=provider,search_term=search_term,search=search)
+    request = ingestion_request(provider=provider,search_term=search_term,search=search)
 
+    return task_ids.append(request.task_id)
 
-    if not task:
+def return_query(_, ):
+    
+    results = [] #ingestion_result_query()
+    
+    if not results:
         return "No results found"
 
     return [
         html.H3("Results"),
         html.Div(
             html.Ul(
-                [html.Li(item) for item in task],
+                [html.Li(item) for item in results],
                 className = "results-list"
             )
         )
