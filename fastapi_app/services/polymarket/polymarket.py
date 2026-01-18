@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 import httpx
 import json
 from typing import Any, Dict, List
@@ -59,11 +60,13 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
 
     data = []
     for event in events:
-        # 
         data.extend(polymarket_get_market_ids(event))
     
     data = await asyncio.gather(*(polymarket_price_history(datum, client.clob, semaphore) for datum in data))
     
+
+    data = format_event_data(data=data)
+
     return data
 
 
@@ -104,7 +107,7 @@ async def polymarket_query_event_slug(slug: str, client: httpx.AsyncClient, sema
 
 async def polymarket_get_events_from_keyword(keyword: str, limit: int, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> List[Dict]:
     """
-    Return polymarket slugs that match keyword search
+    Return polymarket list of polymarket events that 
     """
 
     ENDPOINT = '/public-search'
@@ -119,7 +122,7 @@ async def polymarket_get_events_from_keyword(keyword: str, limit: int, client: h
 
     return events
 
-
+# Fix this to take into count new nested structure of markets but keep async
 async def polymarket_price_history(data: Dict, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> Dict:
     """
     Return price history for a given market and outcome
@@ -148,18 +151,84 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
     """
 
     data = []
+    event_title = event['title']
+    event_id = event['id']
     markets = event['markets']
+    event_image = event['image']
     for market in markets:
-        question = market['question']
+        
+        market_question = market['question']
         
         # Polymarket API wraps these lists with a string "["...", "..."]"
         outcomes = json.loads(market['outcomes'])
-        tokenIds = json.loads(market['clobTokenIds'])
+        clobTokenIds = market.get('clobTokenIds',[])
+        volume = market['volumeNum']
+        market_id = market['id']
         
-        for i in range(len(outcomes)):
-            data.append({
-                'question':question,
-                'outcome':outcomes[i],
-                'tokenId':tokenIds[i]})
+        # Check if the the market has a CLOB orderbook, otherwise price history not available
+        if clobTokenIds:
+            tokenIds = json.loads(market['clobTokenIds'])
+
+            for i in range(len(outcomes)):
+                next_market = {
+                        'provider':'polymarket',
+                        'event_id':event_id,
+                        'event_title':event_title,
+                        'event_image':event_image,
+                        'market_id':market_id,
+                        'market_question': market_question, 
+                        'outcome':outcomes[i], 
+                        'tokenId':tokenIds[i],
+                        'volume':volume
+                        }
+                
+                data.append(next_market)
 
     return data
+
+
+def materialize_polymarket(flat_rows: List[Dict]) -> Dict: 
+    
+    # Create 
+    tree = defaultdict(
+        lambda: {
+            #might not be necessary
+            "title": None,
+            "image":None,
+            "markets": defaultdict(
+                lambda: {
+                    "question": None,
+                    "volume":None,
+                    "outcomes": []
+                }
+            )
+        }
+    )
+
+    for row in flat_rows:
+        event_id = row['event_id']
+        market_id = row['market_id']
+
+        # Define event node
+        event = tree[event_id]
+
+        # Populate event node
+        event["title"] = row["event_title"]
+        event["image"] = row["event_image"]
+
+        # Define market node
+        market = event["markets"][market_id]
+
+        #Populate market node
+        market["question"] = row["market_question"]
+        market["volume"] = row["volume"]
+        market["outcomes"].append(
+            {
+                'provider':row['provider'],
+                'tokenId':row['tokenId'],
+                'outcome':row['outcome'],
+                'history':row['history']
+            }
+        )
+    
+    return tree

@@ -76,7 +76,7 @@ def make_query(_, provider, search_term, search, storage, results):
         dcc.Store(id={'type': 'task-storage', 'index':f'{request.task_id}'}, data=[request.task_id])
     
     ])
-
+    
     result_container = html.Div(id={'type':'result-container', 'index':f'{request.task_id}'})
 
     return storage+[new_query], results+[result_container]
@@ -97,5 +97,5 @@ def return_query(_, task_id, results):
                     [html.Li(item) for item in results],
                 )
             )
-
+        
         return results + [new_result]
