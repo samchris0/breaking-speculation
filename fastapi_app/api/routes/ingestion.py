@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from celery.result import AsyncResult
 
 from fastapi_app.core.celery_app import celery_app
-from fastapi_app.core.redis import redis_client
+from fastapi_app.core.async_redis import async_redis
 from fastapi_app.tasks.ingestion import start_ingestion
 from fastapi_app.schemas.ingestion import IngestionRequest
 
@@ -25,15 +25,18 @@ async def ingestor(req : IngestionRequest):
 @router.get("/{task_id}")
 async def check_request(task_id: str):
     result = AsyncResult(task_id, app=celery_app)
-       
+    
+    #Add redis ingestion tag
+    task_id = f"ingestion:{task_id}"
+
     if result.state == "PENDING":
         return {"status": "pending"}
     elif result.state == "FAILURE":
-        return {"status": "failed", "error": str(result.result)}
+        return {"status": "failure", "error": str(result.result)}
     elif result.state == 'SUCCESS':
         
         # Get results from task_id
-        data_bytes = await redis_client.get(task_id) 
+        data_bytes = await async_redis.get(task_id) 
 
         if data_bytes:
             # Decompress data
@@ -42,6 +45,9 @@ async def check_request(task_id: str):
             )
             return {'status': 'success', 'data': data}
         else:
-            return{'Error: Query finished sucessfully with no results'}   
+            return {
+                "status": "failed",
+                "error": "Query finished successfully but no results were found"
+            }  
     else:
         return {"status": result.state.lower()}

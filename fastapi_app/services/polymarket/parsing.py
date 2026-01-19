@@ -19,12 +19,20 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
         # Polymarket API wraps these lists with a string "["...", "..."]"
         outcomes = json.loads(market['outcomes'])
         clobTokenIds = market.get('clobTokenIds',[])
-        volume = market['volumeNum']
         market_id = market['id']
         
+        # Check if market is active, open, and has volume
+        market_closed = market["closed"]
+        market_active = market["active"]
+        volume = float(market.get('volume',0))
+
         # Check if the the market has a CLOB orderbook, otherwise price history not available
-        if clobTokenIds:
+        if clobTokenIds and volume and market_active and not market_closed:
             tokenIds = json.loads(market['clobTokenIds'])
+
+
+            if not volume:
+                print(market)
 
             for i in range(len(outcomes)):
                 next_market = {
@@ -34,6 +42,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
                         'event_image':event_image,
                         'market_id':market_id,
                         'market_question': market_question, 
+                        'volume':volume,
                         'outcome':outcomes[i], 
                         'tokenId':tokenIds[i],
                         'volume':volume
@@ -46,7 +55,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
 
 def materialize_polymarket(flat_rows: List[Dict]) -> Dict: 
     
-    # Create 
+    # Create dict structure
     tree = defaultdict(
         lambda: {
             #might not be necessary

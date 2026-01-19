@@ -9,7 +9,7 @@ import zlib
 from pydantic import TypeAdapter
 
 from fastapi_app.core.celery_app import celery_app
-from fastapi_app.core.redis import redis_client
+from fastapi_app.core.sync_redis import sync_redis
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.services.dispatcher import dispatcher
 
@@ -30,7 +30,7 @@ def start_ingestion(self, req_dict):
         json.dumps(results).encode("utf-8")
     )
 
-    redis_client.setex(
+    sync_redis.setex(
         f"ingestion:{self.request.id}",
         300, #Store for 5 minutes  
         payload

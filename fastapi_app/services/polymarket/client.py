@@ -5,7 +5,6 @@ from typing import Any, Dict, List
 from fastapi_app.core.polymarket_client import PolymarketClient, PolymarketRateLimit, PolymarketUnavailable
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.schemas.intent import ExactSearch, KeywordSearch
-from fastapi_app.services.polymarket.polymarket_get import polymarket_get
 
 async def polymarket_query_event_slug(slug: str, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> Dict:
     """
@@ -56,3 +55,26 @@ async def polymarket_price_history(data: Dict, client: httpx.AsyncClient, semaph
         data['history'] = {key: [d[key] for d in data['history']] for key in data['history'][0]}
 
     return data
+
+async def polymarket_get(client: httpx.AsyncClient, semaphore: asyncio.Semaphore, endpoint: str, *,params: dict | None = None,) -> Dict:
+    """
+    async get polymarket get function with error handling
+    """
+    async with semaphore:
+        try:
+            resp = await client.get(endpoint, params=params)
+        except httpx.TimeoutException as e:
+            raise PolymarketUnavailable() from e
+
+    if resp.status_code == 200:
+        return resp.json()
+
+    if resp.status_code == 429:
+        raise PolymarketRateLimit()
+
+    if resp.status_code >= 500:
+        raise PolymarketUnavailable()
+
+    resp.raise_for_status()
+
+    raise PolymarketUnavailable()

@@ -36,6 +36,7 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient) ->
     
     # Format flat data into hierchical polymarket structure, dict
     format_data = materialize_polymarket(data)
+    
     return format_data
     
 async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore: asyncio.Semaphore) -> List[Dict]:

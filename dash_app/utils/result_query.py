@@ -1,13 +1,14 @@
 import requests
+from typing import Dict, Tuple
 
 from utils.config import FASTAPI_BASE_URL
 
-def result_query(task_id):
+def result_query(task_id: str) -> Dict:
     
-    results = requests.post(f"{FASTAPI_BASE_URL}/{task_id}")
+    results = requests.get(f"{FASTAPI_BASE_URL}/ingestion/{task_id}")
+    
     results.raise_for_status()
 
     results = results.json()
-
-    if results.status == 'success':
-        return results.data
+    
+    return results
