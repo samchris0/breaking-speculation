@@ -4,14 +4,14 @@ from fastapi_app.core.polymarket_client import PolymarketClient
 from fastapi_app.schemas.ingestion import IngestionRequest, PolymarketIngestion, KalshiIngestion
 from fastapi_app.services.polymarket.handler import polymarket_handler
 
-async def dispatcher(req : IngestionRequest) -> List:
+async def dispatcher(api_request : IngestionRequest, task_id : str):
 # Checks for service provider and dispatches request to the correct handler for API queries
 
-    match req:
+    match api_request:
         case PolymarketIngestion():
             client = PolymarketClient()
             try:
-                result = await polymarket_handler(req, client)
+                await polymarket_handler(api_request, client, task_id)
             finally:
                 await client.close()
             
@@ -24,5 +24,5 @@ async def dispatcher(req : IngestionRequest) -> List:
     # formatted_results = normalize_data(result)
     # (Or should I make a different return path? e.g sent results to normalize_data and return from there?)
     # For now return list of results
-    return list(result.values())
+    # return list(result.values())
 

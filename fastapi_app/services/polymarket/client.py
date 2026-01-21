@@ -60,6 +60,7 @@ async def polymarket_get(client: httpx.AsyncClient, semaphore: asyncio.Semaphore
     """
     async get polymarket get function with error handling
     """
+    
     async with semaphore:
         try:
             resp = await client.get(endpoint, params=params)

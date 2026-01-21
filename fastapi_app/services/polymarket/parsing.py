@@ -52,13 +52,57 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
 
     return data
 
+def create_tree():
+
+    tree = defaultdict(
+        lambda: {
+            "title": None,
+            "image":None,
+            "markets": defaultdict(
+                lambda: {
+                    "question": None,
+                    "volume":None,
+                    "outcomes": []
+                }
+            )
+        }
+    )
+
+    return tree
+
+def add_market_to_tree(tree: Dict, market: Dict) -> Dict:
+    event_id = market['event_id']
+    market_id = market['market_id']
+
+    # Define event node
+    event = tree[event_id]
+
+    # Populate event node
+    event["title"] = market["event_title"]
+    event["image"] = market["event_image"]
+
+    # Define market node
+    market = event["markets"][market_id]  # type: ignore[index]
+
+    #Populate market node
+    market["question"] = market["market_question"]
+    market["volume"] = market["volume"]
+    market["outcomes"].append(  # type: ignore[index]
+        {
+            'provider':market['provider'],
+            'tokenId':market['tokenId'],
+            'outcome':market['outcome'],
+            'history':market['history']
+        }
+    )
+
+    return tree
 
 def materialize_polymarket(flat_rows: List[Dict]) -> Dict: 
     
     # Create dict structure
     tree = defaultdict(
         lambda: {
-            #might not be necessary
             "title": None,
             "image":None,
             "markets": defaultdict(

@@ -21,19 +21,7 @@ def start_ingestion(self, req_dict):
     req = adapter.validate_python(req_dict)
     
     # Start event loop and run query
-    results = asyncio.run(dispatcher(req))
+    asyncio.run(dispatcher(api_request = req, task_id = self.request.id))
 
-    # Add parsing logic here to standardize returns from different APIs
-
-    # Convert to serialize then convert to bytes for improved storage/access
-    payload = zlib.compress(
-        json.dumps(results).encode("utf-8")
-    )
-
-    sync_redis.setex(
-        f"ingestion:{self.request.id}",
-        300, #Store for 5 minutes  
-        payload
-    )
-
+    
 

@@ -25,7 +25,7 @@ async def ingestor(req : IngestionRequest):
 @router.get("/{task_id}")
 async def check_request(task_id: str):
     result = AsyncResult(task_id, app=celery_app)
-    
+
     #Add redis ingestion tag
     task_id = f"ingestion:{task_id}"
 
