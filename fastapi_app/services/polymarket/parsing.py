@@ -30,7 +30,6 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
         if clobTokenIds and volume and market_active and not market_closed:
             tokenIds = json.loads(market['clobTokenIds'])
 
-
             if not volume:
                 print(market)
 
@@ -82,12 +81,12 @@ def add_market_to_tree(tree: Dict, market: Dict) -> Dict:
     event["image"] = market["event_image"]
 
     # Define market node
-    market = event["markets"][market_id]  # type: ignore[index]
+    market_node = event["markets"][market_id]  # type: ignore[index]
 
     #Populate market node
-    market["question"] = market["market_question"]
-    market["volume"] = market["volume"]
-    market["outcomes"].append(  # type: ignore[index]
+    market_node["question"] = market["market_question"]
+    market_node["volume"] = market["volume"]
+    market_node["outcomes"].append(  # type: ignore[index]
         {
             'provider':market['provider'],
             'tokenId':market['tokenId'],

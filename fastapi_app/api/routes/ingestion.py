@@ -5,9 +5,11 @@ from fastapi import APIRouter
 from celery.result import AsyncResult
 
 from fastapi_app.core.celery_app import celery_app
-from fastapi_app.core.async_redis import async_redis
+from fastapi_app.repositories.ingestion_repository import AsyncIngestionRepository
 from fastapi_app.tasks.ingestion import start_ingestion
 from fastapi_app.schemas.ingestion import IngestionRequest
+
+redis_repository = AsyncIngestionRepository()
 
 router = APIRouter(
     prefix="/ingestion",
@@ -24,30 +26,48 @@ async def ingestor(req : IngestionRequest):
 # Check ingestion task
 @router.get("/{task_id}")
 async def check_request(task_id: str):
+
     result = AsyncResult(task_id, app=celery_app)
+    celery_status = result.state
 
-    #Add redis ingestion tag
-    task_id = f"ingestion:{task_id}"
+    load_status = await redis_repository.get_status(task_id)
+    
+    if celery_status == "STARTED":
+        if load_status == "IN_PROGRESS":
+            data = await redis_repository.load_tree(task_id)
 
-    if result.state == "PENDING":
-        return {"status": "pending"}
-    elif result.state == "FAILURE":
-        return {"status": "failure", "error": str(result.result)}
-    elif result.state == 'SUCCESS':
+            if data:
+                return {"status":"in_progress","data":data}
+            else:
+                return {"status":"in_progress","data":[]}
         
-        # Get results from task_id
-        data_bytes = await async_redis.get(task_id) 
+        elif load_status == "COMPLETE":
+            data = await redis_repository.load_tree(task_id)
 
-        if data_bytes:
-            # Decompress data
-            data = json.loads(
-                    zlib.decompress(data_bytes).decode("utf-8")
-            )
-            return {'status': 'success', 'data': data}
+            if data:
+                return {"status": "success", "data":data}
+            else:
+                return {"status": "failure", "error": "Query completed but no data returned"}
+
+        elif load_status == "FAILED":
+            query_error = await redis_repository.get_error(task_id)
+            return {"status": "failure", "error": query_error}
+
         else:
-            return {
-                "status": "failed",
-                "error": "Query finished successfully but no results were found"
-            }  
+            return {"status":"failure", "error": f"Unknown loading status: {load_status}"}
+
+    elif celery_status == 'SUCCESS':
+        data = await redis_repository.load_tree(task_id)
+
+        if data:
+            return {"status": "success", "data":data}
+        else:
+            return {"status": "failure", "error": "Query completed but no data returned"}        
+
+    elif celery_status == "PENDING":
+        return {"status": "pending"}
+    
+    elif celery_status == "FAILURE":
+        return {"status": "failure", "error": str(result.result)}
     else:
-        return {"status": result.state.lower()}
+        return {"status": celery_status.lower()}

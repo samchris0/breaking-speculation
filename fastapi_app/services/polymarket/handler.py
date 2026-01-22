@@ -2,14 +2,11 @@ import asyncio
 from typing import Any, Dict, List
 
 from fastapi_app.core.polymarket_client import PolymarketClient
-from fastapi_app.core.async_redis import async_redis
 from fastapi_app.repositories.ingestion_repository import AsyncIngestionRepository
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.schemas.intent import ExactSearch, KeywordSearch
 from fastapi_app.services.polymarket.client import polymarket_get_events_from_keyword, polymarket_price_history, polymarket_query_event_slug
 from fastapi_app.services.polymarket.parsing import materialize_polymarket, polymarket_get_market_ids, create_tree, add_market_to_tree
-
-RedisRepository = AsyncIngestionRepository(async_redis)
 
 async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, task_id: str):
     """
@@ -26,20 +23,22 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, ta
 
     """
 
+    redis_repository = AsyncIngestionRepository()
+
     # Define semaphore for this module to limit requests, semaphore must be created in each event loop or asyncio.run will cause error
     polymarket_sem = asyncio.Semaphore(10) 
 
     search = req.search
 
     if isinstance(search, ExactSearch):
-        await polymarket_search_event(slug = req.search_term, client = client, semaphore = polymarket_sem, task_id = task_id)
+        await polymarket_search_event(slug = req.search_term, client = client, semaphore = polymarket_sem, repo = redis_repository, task_id = task_id)
     elif isinstance(search, KeywordSearch):
-        await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client, semaphore = polymarket_sem, task_id = task_id) #type:ignore 
+        await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client, semaphore = polymarket_sem, repo = redis_repository, task_id = task_id) #type:ignore 
     else:
         raise TypeError("search must be exact or keyword")
     
     
-async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore: asyncio.Semaphore, task_id: str):
+async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore: asyncio.Semaphore, repo: AsyncIngestionRepository, task_id: str):
     """
     return all markets in an event in the format described in polymarker_handler
     """
@@ -53,23 +52,29 @@ async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore
     tasks = [polymarket_price_history(datum, client.clob, semaphore) for datum in data]
 
     tree = create_tree()
+    
+    await repo.data_loading_status_start(task_id)
 
-    for coroutine in asyncio.as_completed(tasks):
+    try:
+        for coroutine in asyncio.as_completed(tasks):
+            result = await coroutine
+
+            # Append raw market data to list of raw market data for logging
+            await repo.save_raw_market(task_id, result)
+
+            # Update tree 
+            tree = add_market_to_tree(tree, result)
+            await repo.save_tree(task_id, tree)
         
-        assert isinstance(coroutine, dict)
+        # Set loading status to complete
+        await repo.data_loading_status_end(task_id)
 
-        # Append raw market data to list of raw market data for logging
-        await RedisRepository.save_raw_market(task_id, coroutine)
+    except Exception as e:
+        await repo.data_loading_status_failed(task_id)
+        await repo.set_error(task_id,e)
+        raise
 
-        # Update tree 
-        updated_tree = add_market_to_tree(tree, coroutine)
-
-        await RedisRepository.save_tree(task_id, updated_tree)
-
-    return data
-
-
-async def polymarket_search_keyword(keyword : str, limit : int, client: PolymarketClient, semaphore: asyncio.Semaphore, task_id: str):
+async def polymarket_search_keyword(keyword : str, limit : int, client: PolymarketClient, semaphore: asyncio.Semaphore, repo: AsyncIngestionRepository, task_id: str):
     """
     returns all markets related to keyword search in the form described by polymarket_handler
     """
@@ -85,17 +90,24 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
 
     tree = create_tree()
 
-    for coroutine in asyncio.as_completed(tasks):
+    # Set loading status to in progress
+    await repo.data_loading_status_start(task_id)
+
+    try:
+        for coroutine in asyncio.as_completed(tasks):
+            
+            result = await coroutine
+            
+            # Append raw market data to list of raw market data for logging
+            await repo.save_raw_market(task_id, result)
+            # Update tree 
+            tree = add_market_to_tree(tree, result)
+            await repo.save_tree(task_id, tree)
         
-        assert isinstance(coroutine, dict)
+        # Set loading status to complete
+        await repo.data_loading_status_end(task_id)
 
-        # Append raw market data to list of raw market data for logging
-        await RedisRepository.save_raw_market(task_id, coroutine)
-
-        # Update tree 
-        updated_tree = add_market_to_tree(tree, coroutine)
-
-        await RedisRepository.save_tree(task_id, updated_tree)
-
-
-    return data
+    except Exception as e:
+        await repo.data_loading_status_failed(task_id)
+        await repo.set_error(task_id,e)
+        raise

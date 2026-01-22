@@ -111,32 +111,36 @@ def return_query(_, task_id):
     results = result_query(task_id)
     status = results.get("status")
     
-    disable_polling = False
+    continue_polling = False
+    disable_polling = True
 
-    if status == 'pending':
-        return dash.no_update, disable_polling
+    if status == "pending":
+        return dash.no_update, continue_polling
 
-    if status == 'success':
-        disable_polling = True
+    if status == "in_progress":
         data = results["data"]
 
-        if data:
-            new_result = html.Div(
-                html.Ul(
-                        [html.Pre(json.dumps(item, indent=2)) for item in data]
-                )
+        update_result = html.Div(
+            html.Ul(
+                    [html.Pre(json.dumps(item, indent=2)) for item in data]
             )
-            
-        else:
-            new_result = ["No data returned"]
-
-        return new_result, disable_polling
+        ) 
+        return update_result, continue_polling
     
-    if status == 'failure':
+    if status == "success":
+        data = results["data"]
+
+        final_result = html.Div(
+            html.Ul(
+                    [html.Pre(json.dumps(item, indent=2)) for item in data]
+            )
+        ) 
+        return final_result, disable_polling
+
+    if status == "failure":
         disable_polling = True
         error = results.get("error", "Unknown error")
 
         return [f"Error in fetching data: {error}"], disable_polling
-
 
     return [f"Unknown task status: {status}"], disable_polling

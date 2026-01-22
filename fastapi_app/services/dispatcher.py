@@ -15,14 +15,7 @@ async def dispatcher(api_request : IngestionRequest, task_id : str):
             finally:
                 await client.close()
             
-
         case KalshiIngestion():
-            result = {}
             pass
     
-    # Send result to data normalizer
-    # formatted_results = normalize_data(result)
-    # (Or should I make a different return path? e.g sent results to normalize_data and return from there?)
-    # For now return list of results
-    # return list(result.values())
 

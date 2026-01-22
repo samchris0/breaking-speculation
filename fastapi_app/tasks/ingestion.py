@@ -9,7 +9,6 @@ import zlib
 from pydantic import TypeAdapter
 
 from fastapi_app.core.celery_app import celery_app
-from fastapi_app.core.sync_redis import sync_redis
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.services.dispatcher import dispatcher
 
