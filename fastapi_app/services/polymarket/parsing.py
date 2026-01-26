@@ -141,3 +141,32 @@ def materialize_polymarket(flat_rows: List[Dict]) -> Dict:
         )
     
     return tree
+
+# Adding to stream deltas for more responsive UI
+def market_to_tree_delta(market: dict) -> dict:
+    event_id = market['event_id']
+    market_id = market['market_id']
+
+    delta = {
+        "events": {
+            event_id: {
+                "title": market["event_title"],
+                "image": market["event_image"],
+                "markets": {
+                    market_id: {
+                        "question": market["market_question"],
+                        "volume": market["volume"],
+                        "outcomes": [
+                            {
+                                "provider": market['provider'],
+                                "tokenId": market['tokenId'],
+                                "outcome": market['outcome'],
+                                "history": market['history']
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    return delta

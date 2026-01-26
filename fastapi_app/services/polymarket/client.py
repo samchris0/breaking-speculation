@@ -43,7 +43,8 @@ async def polymarket_price_history(data: Dict, client: httpx.AsyncClient, semaph
     ENDPOINT = '/prices-history'
     PARAMS = {
             'market':data['tokenId'],
-            'interval':'max'
+            'interval':'1w',
+            'fidelity':60
             }
 
     resp = await polymarket_get(client=client, semaphore=semaphore, endpoint=ENDPOINT, params=PARAMS)

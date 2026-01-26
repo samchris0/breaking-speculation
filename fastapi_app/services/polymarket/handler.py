@@ -1,12 +1,11 @@
 import asyncio
-from typing import Any, Dict, List
 
 from fastapi_app.core.polymarket_client import PolymarketClient
-from fastapi_app.repositories.ingestion_repository import AsyncIngestionRepository
+from fastapi_app.repositories.async_repository import AsyncIngestionRepository
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.schemas.intent import ExactSearch, KeywordSearch
 from fastapi_app.services.polymarket.client import polymarket_get_events_from_keyword, polymarket_price_history, polymarket_query_event_slug
-from fastapi_app.services.polymarket.parsing import materialize_polymarket, polymarket_get_market_ids, create_tree, add_market_to_tree
+from fastapi_app.services.polymarket.parsing import polymarket_get_market_ids, create_tree, add_market_to_tree, market_to_tree_delta
 
 async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, task_id: str):
     """
@@ -22,7 +21,7 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, ta
         }
 
     """
-
+    
     redis_repository = AsyncIngestionRepository()
 
     # Define semaphore for this module to limit requests, semaphore must be created in each event loop or asyncio.run will cause error
@@ -36,7 +35,6 @@ async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, ta
         await polymarket_search_keyword(keyword = req.search_term, limit = req.search.limit, client = client, semaphore = polymarket_sem, repo = redis_repository, task_id = task_id) #type:ignore 
     else:
         raise TypeError("search must be exact or keyword")
-    
     
 async def polymarket_search_event(slug: str, client: PolymarketClient, semaphore: asyncio.Semaphore, repo: AsyncIngestionRepository, task_id: str):
     """
@@ -88,22 +86,28 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
     
     tasks = [polymarket_price_history(datum, client.clob, semaphore) for datum in data]
 
-    tree = create_tree()
-
     # Set loading status to in progress
     await repo.data_loading_status_start(task_id)
 
     try:
-        for coroutine in asyncio.as_completed(tasks):
+        for index, coroutine in enumerate(asyncio.as_completed(tasks)):
             
             result = await coroutine
             
             # Append raw market data to list of raw market data for logging
             await repo.save_raw_market(task_id, result)
             # Update tree 
-            tree = add_market_to_tree(tree, result)
-            await repo.save_tree(task_id, tree)
-        
+            #tree = add_market_to_tree(tree, result)
+
+            # Create tree update dict
+            tree_delta = market_to_tree_delta(result)
+
+            await repo.save_tree_delta(task_id, tree_delta)
+            
+            if index == 0:
+                recover_delta = await repo.load_tree_deltas(task_id)
+                print(recover_delta[-1])
+
         # Set loading status to complete
         await repo.data_loading_status_end(task_id)
 

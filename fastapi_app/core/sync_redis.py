@@ -1,7 +1,7 @@
 import os
 import redis
 
-def build_sync_client():
+def build_sync_client() -> redis.Redis:
     REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/2")
 
     sync_redis = redis.Redis.from_url(
