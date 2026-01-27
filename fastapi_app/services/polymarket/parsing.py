@@ -148,7 +148,6 @@ def market_to_tree_delta(market: dict) -> dict:
     market_id = market['market_id']
 
     delta = {
-        "events": {
             event_id: {
                 "title": market["event_title"],
                 "image": market["event_image"],
@@ -168,5 +167,5 @@ def market_to_tree_delta(market: dict) -> dict:
                 }
             }
         }
-    }
+    
     return delta

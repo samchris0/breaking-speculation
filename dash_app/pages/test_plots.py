@@ -1,3 +1,5 @@
+"""
+
 import json
 
 import dash
@@ -9,7 +11,7 @@ from dash_app.utils.merge_tree_deltas import merge_tree_deltas
 from dash_app.utils.render_tree import render_tree, render_tree_keys
 from dash_app.utils.result_query import result_query
 
-dash.register_page(__name__, path="/test")
+dash.register_page(__name__, path="/test-plots")
 
 providers = {'Polymarket':'polymarket', 'Kalshi':'kalshi'}
 
@@ -41,6 +43,9 @@ layout = html.Div([
 
     html.Button('Make Query', id='make-query'),
     
+
+    html.Div(id="accordion-container"),
+
     #Save task_ids
     html.Div(id="store-tasks",
              children=[
@@ -85,7 +90,7 @@ def make_query(_, provider, search_term, search, queries):
     new_query = html.Div(
         [
             # Add max interval?
-            #dcc.Interval(id={'type': 'result-polling', 'index':f'{request["task_id"]}'}, interval=750, disabled=False),
+            dcc.Interval(id={'type': 'result-polling', 'index':f'{request["task_id"]}'}, interval=750, disabled=False),
             dcc.Interval(id={'type': 'result-polling', 'index':f'{request["task_id"]}'}, interval=750, disabled=False),
             dcc.Store(id={'type': 'task-id-storage', 'index':f'{request["task_id"]}'}, data=request["task_id"]),
             dcc.Store(id={'type': 'task-index-counter', 'index':f'{request["task_id"]}'}, data=0),
@@ -134,11 +139,16 @@ def return_query(_, task_id, index, tree):
         return [f"Error in fetching data: {error}"], polling_disabled, index, tree
 
     deltas = request["data"]
+    
     if deltas:
         new_deltas = deltas[index:]
         new_index = len(deltas)
         new_tree = merge_tree_deltas(tree, new_deltas)
         html_tree = render_tree_keys(new_tree)
+
+        #for delta in new_deltas:
+        #    for event_key in delta["events"].keys():
+        #        for market_keys in delta["events"][event_key]:        
 
         if status == "in_progress":
             return html_tree, continue_polling, new_index, new_tree
@@ -147,3 +157,15 @@ def return_query(_, task_id, index, tree):
             return html_tree, polling_disabled, new_index, new_tree
 
     return [f"Status: {status}"], continue_polling, index, tree
+"""
+    
+
+"""
+@callback(
+    Output("accordion-container","children"),
+    Input({'type': 'result-tree', 'index': MATCH}, 'data'),
+    State("accordion-container","children")
+)
+def render_accordion(tree, accordions):
+    return
+"""

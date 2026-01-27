@@ -96,7 +96,8 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
             
             # Append raw market data to list of raw market data for logging
             await repo.save_raw_market(task_id, result)
-            # Update tree 
+            
+            # Update tree (No longer needed?)
             #tree = add_market_to_tree(tree, result)
 
             # Create tree update dict
@@ -104,9 +105,10 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
 
             await repo.save_tree_delta(task_id, tree_delta)
             
-            if index == 0:
-                recover_delta = await repo.load_tree_deltas(task_id)
-                print(recover_delta[-1])
+            #test
+            #if index == 0:
+            #    recover_delta = await repo.load_tree_deltas(task_id)
+            #    print(recover_delta[-1])
 
         # Set loading status to complete
         await repo.data_loading_status_end(task_id)

@@ -39,8 +39,6 @@ async def check_request(task_id: str):
             data = await redis_repository.load_tree_deltas(task_id)
 
             if data:
-                # TEST
-                print(data[-1]["events"].keys())
                 return {"status":"in_progress","data":data}
             else:
                 return {"status":"in_progress","data":[]}
