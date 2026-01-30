@@ -9,7 +9,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
 
     data = []
     event_title = event['title']
-    event_id = event['id']
+    event_id = int(event['id'])
     markets = event['markets']
     event_image = event['image']
     for market in markets:
@@ -19,7 +19,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
         # Polymarket API wraps these lists with a string "["...", "..."]"
         outcomes = json.loads(market['outcomes'])
         clobTokenIds = market.get('clobTokenIds',[])
-        market_id = market['id']
+        market_id = int(market['id'])
         
         # Check if market is active, open, and has volume
         market_closed = market["closed"]
@@ -55,11 +55,11 @@ def create_tree():
 
     tree = defaultdict(
         lambda: {
-            "title": None,
-            "image":None,
+            "event_title": None,
+            "event_image":None,
             "markets": defaultdict(
                 lambda: {
-                    "question": None,
+                    "market_question": None,
                     "volume":None,
                     "outcomes": []
                 }
@@ -77,14 +77,14 @@ def add_market_to_tree(tree: Dict, market: Dict) -> Dict:
     event = tree[event_id]
 
     # Populate event node
-    event["title"] = market["event_title"]
-    event["image"] = market["event_image"]
+    event["event_title"] = market["event_title"]
+    event["event_image"] = market["event_image"]
 
     # Define market node
     market_node = event["markets"][market_id]  # type: ignore[index]
 
     #Populate market node
-    market_node["question"] = market["market_question"]
+    market_node["market_question"] = market["market_question"]
     market_node["volume"] = market["volume"]
     market_node["outcomes"].append(  # type: ignore[index]
         {
@@ -149,20 +149,19 @@ def market_to_tree_delta(market: dict) -> dict:
 
     delta = {
             event_id: {
-                "title": market["event_title"],
-                "image": market["event_image"],
+                "event_title": market["event_title"],
+                "event_image": market["event_image"],
                 "markets": {
                     market_id: {
-                        "question": market["market_question"],
+                        "market_question": market["market_question"],
                         "volume": market["volume"],
-                        "outcomes": [
-                            {
-                                "provider": market['provider'],
-                                "tokenId": market['tokenId'],
-                                "outcome": market['outcome'],
-                                "history": market['history']
-                            }
-                        ]
+                        "outcomes": {
+                            market["outcome"]: {
+                                                "provider": market['provider'],
+                                                "tokenId": market['tokenId'],
+                                                "history":market["history"]
+                                                }
+                        }
                     }
                 }
             }

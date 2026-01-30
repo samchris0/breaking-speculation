@@ -1,3 +1,4 @@
+"""
 import json
 
 import dash
@@ -147,3 +148,4 @@ def return_query(_, task_id, index, tree):
             return html_tree, polling_disabled, new_index, new_tree
 
     return [f"Status: {status}"], continue_polling, index, tree
+"""

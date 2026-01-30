@@ -21,7 +21,7 @@ services:
   worker:
     build: .
     user: "1000:1000"
-    command: celery -A fastapi_app.core.celery_app worker --loglevel=info
+    command: celery -A fastapi_app.core.celery_app worker --loglevel=INFO
     depends_on:
       - redis
     volumes:

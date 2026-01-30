@@ -1,23 +1,23 @@
-"""
-
-import json
+from collections import defaultdict
 
 import dash
-from dash import html, dcc, callback, Input, Output, State, MATCH
+import dash_mantine_components as dmc
+from dash import html, dcc, callback, Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
 
+from dash_app.utils.build_figures import build_market_figure
 from dash_app.utils.ingestion_request import ingestion_request
 from dash_app.utils.merge_tree_deltas import merge_tree_deltas
-from dash_app.utils.render_tree import render_tree, render_tree_keys
+from dash_app.utils.render_tree import render_tree_keys
 from dash_app.utils.result_query import result_query
 
 dash.register_page(__name__, path="/test-plots")
 
-providers = {'Polymarket':'polymarket', 'Kalshi':'kalshi'}
+providers = {'Polymarket':'polymarket'}
 
 provider_searches = {
     'polymarket': {'keyword':'keyword', 'event_slug':'exact'},
-    'kalshi': []
+    #'kalshi': []
 }
 
 layout = html.Div([
@@ -43,8 +43,11 @@ layout = html.Div([
 
     html.Button('Make Query', id='make-query'),
     
-
-    html.Div(id="accordion-container"),
+    html.Div(id="accordion-container",
+             children=[
+                    html.Div(id={"type":"accordion", "index":"init"})     
+                ] 
+            ),
 
     #Save task_ids
     html.Div(id="store-tasks",
@@ -57,7 +60,9 @@ layout = html.Div([
                 ])
             ]     
         ),
-    ])
+    ]
+)
+
 
 #Build search options radio buttons based on provider selected
 @callback(
@@ -72,25 +77,25 @@ def display_search_options(provider):
     else:
         return []
 
+
 @callback(
         Output('store-tasks','children'),
+        Output('accordion-container', 'children'),
         Input('make-query','n_clicks'),
         State('provider','value'),
         State('search-term','value'),
         State('provider-search-options', 'value'),
         State('store-tasks','children'),
+        State('accordion-container', 'children'),
         prevent_initial_call=True
 )
-def make_query(_, provider, search_term, search, queries):
+def make_query(_, provider, search_term, search, queries, accordions):
 
     request = ingestion_request(provider=provider,search_term=search_term,search=search)
-
-    print(request["task_id"])
 
     new_query = html.Div(
         [
             # Add max interval?
-            dcc.Interval(id={'type': 'result-polling', 'index':f'{request["task_id"]}'}, interval=750, disabled=False),
             dcc.Interval(id={'type': 'result-polling', 'index':f'{request["task_id"]}'}, interval=750, disabled=False),
             dcc.Store(id={'type': 'task-id-storage', 'index':f'{request["task_id"]}'}, data=request["task_id"]),
             dcc.Store(id={'type': 'task-index-counter', 'index':f'{request["task_id"]}'}, data=0),
@@ -103,8 +108,14 @@ def make_query(_, provider, search_term, search, queries):
         ],
     className="query"
     )
-    
-    return queries+[new_query]
+
+    new_accordion = html.Div(
+        [
+            html.Div(id={"type":"accordion", "index":f'{request["task_id"]}'})
+        ]
+    )
+
+    return queries+[new_query], accordions+[new_accordion]
 
 
 @callback(
@@ -144,28 +155,111 @@ def return_query(_, task_id, index, tree):
         new_deltas = deltas[index:]
         new_index = len(deltas)
         new_tree = merge_tree_deltas(tree, new_deltas)
-        html_tree = render_tree_keys(new_tree)
-
-        #for delta in new_deltas:
-        #    for event_key in delta["events"].keys():
-        #        for market_keys in delta["events"][event_key]:        
+        
 
         if status == "in_progress":
-            return html_tree, continue_polling, new_index, new_tree
+            return ["New Data Added"], continue_polling, new_index, new_tree
         
         if status == "success":
-            return html_tree, polling_disabled, new_index, new_tree
+            return ["Completed Successfully"], polling_disabled, new_index, new_tree
 
     return [f"Status: {status}"], continue_polling, index, tree
-"""
-    
 
-"""
+
 @callback(
-    Output("accordion-container","children"),
-    Input({'type': 'result-tree', 'index': MATCH}, 'data'),
-    State("accordion-container","children")
+    Output({"type": "accordion", "index": MATCH}, "children"),
+    Input({"type": "result-tree", "index": MATCH}, "data"),
+    #State({"type": "accordion", "task_id": MATCH}, "children"),
+    prevent_initial_call=True
 )
-def render_accordion(tree, accordions):
-    return
-"""
+def create_accordion(tree):
+    
+    event_accordions = []
+
+    for event_id, event_data in tree.items():
+        
+        event_accordions.append(
+            dmc.Stack(
+                #spacing="xs",
+                children=[
+                    dmc.Group(
+                        children=[
+                            # Event image
+                            html.Img(
+                                src=event_data["event_image"], #type: ignore
+                                style={"width": "40px", "height": "40px", "object-fit": "cover"},
+                            ),
+
+                            # Event title
+                            dmc.Text(
+                                f"{event_data['event_title']}",
+                                size="lg",
+                                fw=600,
+                            ),
+                        ],
+                    ),#
+
+                    # Build accordion
+                    dmc.Accordion(
+                        id = {
+                            "type": "event-accordion",
+                            "event_id": event_id,
+                        },
+                        multiple=True,
+                        children=[
+                            dmc.AccordionItem(
+                                value=market_id, #type: ignore
+                                children=[
+                                    dmc.AccordionControl(
+                                        f"{market_data['market_question']}"
+                                    ),
+                                    dmc.AccordionPanel(
+                                        html.Div(
+                                            id={
+                                                "type": "market-graph-container",
+                                                "event_id": event_id,
+                                                "market_id": market_id,
+                                            },
+
+                                        )
+                                    ),
+                                ],
+                            )
+                            for market_id, market_data in event_data["markets"].items() # type: ignore
+                        ],
+                    ),
+                    
+                    # Space out accordions
+                    dmc.Divider(my="sm"),
+                
+                ],
+            )
+        )
+
+    return event_accordions
+
+
+@callback(
+    Output({"type": "market-graph-container", "event_id": MATCH, "market_id": ALL}, "children"),
+    Input({"type": "event-accordion", "event_id": MATCH}, "value"),
+    State({"type": "market-store", "event_id": MATCH, "market_id": ALL}, "data"),
+    prevent_initial_call=True
+)
+def render_plots(active_markets, markets_data):
+    if not active_markets:
+        return [dash.no_update] * len(markets_data)
+
+    outputs = []
+
+    for market_id, market_data in zip(
+        dash.ctx.outputs_list[0]["id"]["market_id"],
+        markets_data,
+    ):
+        if market_id in active_markets:
+            outputs.append(
+                dcc.Graph(figure=build_market_figure(market_data))
+            )
+        else:
+            outputs.append(None)
+
+    return outputs

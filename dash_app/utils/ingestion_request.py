@@ -31,8 +31,6 @@ def ingestion_request(provider: str, search_term: str, search: str, limit: int =
         "search": search_dict
     }
 
-    print(payload)
-
     ingestion = requests.post(f"{FASTAPI_BASE_URL}/ingestion", json=payload)
     ingestion.raise_for_status()
 

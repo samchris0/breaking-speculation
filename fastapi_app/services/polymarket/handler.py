@@ -1,11 +1,15 @@
 import asyncio
+import logging
 
 from fastapi_app.core.polymarket_client import PolymarketClient
+from fastapi_app.core.celery_logging_config import get_logger
 from fastapi_app.repositories.async_repository import AsyncIngestionRepository
 from fastapi_app.schemas.ingestion import IngestionRequest
 from fastapi_app.schemas.intent import ExactSearch, KeywordSearch
 from fastapi_app.services.polymarket.client import polymarket_get_events_from_keyword, polymarket_price_history, polymarket_query_event_slug
 from fastapi_app.services.polymarket.parsing import polymarket_get_market_ids, create_tree, add_market_to_tree, market_to_tree_delta
+
+logger = get_logger(__name__)
 
 async def polymarket_handler(req: IngestionRequest, client: PolymarketClient, task_id: str):
     """
@@ -76,6 +80,8 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
     """
     returns all markets related to keyword search in the form described by polymarket_handler
     """
+    
+    print("ENTERED polymarket_search_keyword")
 
     # Get list of events relating to keyword search
     events = await polymarket_get_events_from_keyword(keyword, limit, client.gamma, semaphore)
@@ -103,12 +109,9 @@ async def polymarket_search_keyword(keyword : str, limit : int, client: Polymark
             # Create tree update dict
             tree_delta = market_to_tree_delta(result)
 
+            logger.debug(tree_delta)
+
             await repo.save_tree_delta(task_id, tree_delta)
-            
-            #test
-            #if index == 0:
-            #    recover_delta = await repo.load_tree_deltas(task_id)
-            #    print(recover_delta[-1])
 
         # Set loading status to complete
         await repo.data_loading_status_end(task_id)
