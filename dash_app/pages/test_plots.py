@@ -169,7 +169,6 @@ def return_query(_, task_id, index, tree):
 @callback(
     Output({"type": "accordion", "index": MATCH}, "children"),
     Input({"type": "result-tree", "index": MATCH}, "data"),
-    #State({"type": "accordion", "task_id": MATCH}, "children"),
     prevent_initial_call=True
 )
 def create_accordion(tree):
@@ -178,61 +177,78 @@ def create_accordion(tree):
 
     for event_id, event_data in tree.items():
         
+        market_list = list(event_data["markets"].items())
+        show_toggle_button = len(market_list) > 5
+
         event_accordions.append(
-            dmc.Stack(
-                #spacing="xs",
-                children=[
-                    dmc.Group(
-                        children=[
-                            # Event image
-                            html.Img(
-                                src=event_data["event_image"], #type: ignore
-                                style={"width": "40px", "height": "40px", "object-fit": "cover"},
-                            ),
+            html.Div(
+                key=f"event-{event_id}",
+                children=[   
+                    dcc.Store(
+                        id={"type": "accordion-visibility", "event-id": event_id, },
+                        data="collapsed",
+                    ),
 
-                            # Event title
-                            dmc.Text(
-                                f"{event_data['event_title']}",
-                                size="lg",
-                                fw=600,
-                            ),
-                        ],
-                    ),#
-
-                    # Build accordion
-                    dmc.Accordion(
-                        id = {
-                            "type": "event-accordion",
-                            "event_id": event_id,
-                        },
-                        multiple=True,
+                    dmc.Stack(
                         children=[
-                            dmc.AccordionItem(
-                                value=market_id, #type: ignore
+                            dmc.Group(
                                 children=[
-                                    dmc.AccordionControl(
-                                        f"{market_data['market_question']}"
+                                    # Event image
+                                    html.Img(
+                                        src=event_data["event_image"], #type: ignore
+                                        style={"width": "40px", "height": "40px", "object-fit": "cover"},
                                     ),
-                                    dmc.AccordionPanel(
-                                        html.Div(
-                                            id={
-                                                "type": "market-graph-container",
-                                                "event_id": event_id,
-                                                "market_id": market_id,
-                                            },
 
-                                        )
+                                    # Event title
+                                    dmc.Text(
+                                        f"{event_data['event_title']}",
+                                        size="lg",
+                                        fw=600,
                                     ),
                                 ],
+                            ),
+                        
+                        # Build accordion
+                        dmc.Accordion(
+                            id = {"type": "event-accordion","event-id": event_id},
+                            multiple=True,
+                            children=[
+                                dmc.AccordionItem(
+                                    value=market_id, #type: ignore
+                                    style={
+                                        "display": "block" if i < 5 else "none"
+                                    },
+                                    children=[
+                                        dmc.AccordionControl(
+                                            f"{market_data['market_question']}"
+                                        ),
+                                        dmc.AccordionPanel(
+                                            html.Div(
+                                                id={"type": "market-graph-container","event-id": event_id,"market-id": market_id,},
+                                            )
+                                        ),
+                                    ],
+                                )
+                                for i, (market_id, market_data) in enumerate(market_list) # type: ignore
+                            ],
+                        ),
+
+                        dmc.Center(
+                            dmc.Button(
+                                "Show all markets",
+                                id={"type": "accordion-toggle", "event-id": event_id},
+                                variant="subtle",
+                                size="sm",
+                                style={"display": "block" if show_toggle_button else "none"}
                             )
-                            for market_id, market_data in event_data["markets"].items() # type: ignore
-                        ],
-                    ),
+                        ),
+                        
+                        # Space out accordions
+                        dmc.Divider(my="sm"),
                     
-                    # Space out accordions
-                    dmc.Divider(my="sm"),
-                
-                ],
+                        ]
+                    )
+                ]
             )
         )
 
@@ -240,26 +256,75 @@ def create_accordion(tree):
 
 
 @callback(
-    Output({"type": "market-graph-container", "event_id": MATCH, "market_id": ALL}, "children"),
-    Input({"type": "event-accordion", "event_id": MATCH}, "value"),
-    State({"type": "market-store", "event_id": MATCH, "market_id": ALL}, "data"),
+    Output({"type": "market-graph-container", "event-id": MATCH, "market-id": ALL}, "children"),
+    Input({"type": "event-accordion", "event-id": MATCH}, "value"),
+    State({"type": "result-tree", "index": ALL}, "data"),
     prevent_initial_call=True
 )
-def render_plots(active_markets, markets_data):
-    if not active_markets:
-        return [dash.no_update] * len(markets_data)
+def render_plots(active_markets, results_trees):
+    
+    if isinstance(active_markets, str):
+        active_markets = [active_markets]
 
+    # Get output ids
+    event_id = dash.ctx.outputs_list[0]["id"]["event-id"]
+    market_ids = [output["id"]["market-id"] for output in dash.ctx.outputs_list]
+
+    n_markets = len(market_ids)
+    
+    if not active_markets:
+        return [dash.no_update] * n_markets
+
+    # Find the tree containing this event
+    tree = next((t for t in results_trees if event_id in t), None)
+    
+    if not tree:
+        return [dash.no_update] * n_markets
+
+    event_data = tree[event_id]
+    markets_dict = event_data.get("markets", {})
+    
     outputs = []
 
-    for market_id, market_data in zip(
-        dash.ctx.outputs_list[0]["id"]["market_id"],
-        markets_data,
-    ):
-        if market_id in active_markets:
-            outputs.append(
-                dcc.Graph(figure=build_market_figure(market_data))
-            )
+    for market_id in market_ids:
+        
+        # Check if active
+        if market_id not in active_markets:
+            outputs.append(dash.no_update)
+            continue
+        
+        market_data = markets_dict.get(market_id)
+        
+        if market_data:
+            outputs.append(dcc.Graph(figure=build_market_figure(market_data),
+                                     config={'displayModeBar': False,
+                                             'scrollZoom': False}
+                                )
+                            )
         else:
-            outputs.append(None)
+            outputs.append(dash.no_update)
 
     return outputs
+
+@callback(
+    Output({"type": "event-accordion", "event-id": MATCH},"children",),
+    Output({"type": "accordion-toggle", "event-id": MATCH},"children",),
+    Output({"type": "accordion-visibility", "event-id": MATCH},"data",),
+    Input({"type": "accordion-toggle", "event-id": MATCH},"n_clicks",),
+    State({"type": "event-accordion", "event-id": MATCH},"children",),
+    State({"type": "accordion-visibility", "event-id": MATCH},"data",),
+    prevent_initial_call=True,
+)
+def toggle_accordion(_, accordion_children, visibility):
+    show_all = visibility == "collapsed"
+
+    for i, item in enumerate(accordion_children):
+        item["props"]["style"] = {
+            "display": "block" if show_all or i < 5 else "none"
+        }
+
+    return (
+        accordion_children,
+        "Show fewer markets" if show_all else "Show all markets",
+        "expanded" if show_all else "collapsed",
+    )

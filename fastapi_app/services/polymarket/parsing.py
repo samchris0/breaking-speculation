@@ -9,7 +9,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
 
     data = []
     event_title = event['title']
-    event_id = int(event['id'])
+    event_id = str(event['id'])
     markets = event['markets']
     event_image = event['image']
     for market in markets:
@@ -19,7 +19,7 @@ def polymarket_get_market_ids(event: Dict[str, Any]) -> List[Dict]:
         # Polymarket API wraps these lists with a string "["...", "..."]"
         outcomes = json.loads(market['outcomes'])
         clobTokenIds = market.get('clobTokenIds',[])
-        market_id = int(market['id'])
+        market_id = str(market['id'])
         
         # Check if market is active, open, and has volume
         market_closed = market["closed"]

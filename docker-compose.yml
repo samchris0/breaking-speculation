@@ -34,7 +34,7 @@ services:
     build: .
     volumes:
       - ./dash_app:/app/dash_app
-    command: python -m dash_app.main
+    command: python -u -m dash_app.main
     ports:
       - "8050:8050"
     depends_on:
