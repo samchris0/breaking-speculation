@@ -28,7 +28,7 @@ def build_market_figure(market_data):
             yes_dates = [datetime.fromtimestamp(ts) for ts in yes_history["t"]]
 
             fig.add_trace(
-                go.Scatter(x=yes_dates,y=yes_price,name="Yes",mode="lines",line_color="darkgreen")
+                go.Scatter(x=yes_dates,y=yes_price,name="Yes",mode="lines",line_color="darkgreen")#, template="simple_white")
             )
             fig.update_layout(    
                 title=f"{round(yes_price[-1])}% Chance"
