@@ -3,7 +3,7 @@ import zlib
 
 from redis import Redis
 
-from news_procesor.redis_client import build_client
+from news_procesor.redis.redis_client import build_client
 
 class HeadlineRepository():
 

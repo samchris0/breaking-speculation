@@ -4,11 +4,11 @@ import redis
 from datetime import datetime
 from typing import List, Dict
 
-from news_procesor.celery_app import celery_app
-from news_procesor.ingestion_request import ingestion_request
-from news_procesor.keywords import KeywordExtractor
-from news_procesor.news_fetcher import NewsFetcher
-from news_procesor.repository import HeadlineRepository
+from news_procesor.core.celery_app import celery_app
+from news_procesor.utils.ingestion_request import ingestion_request
+from news_procesor.core.keywords import KeywordExtractor
+from news_procesor.core.news_fetcher import NewsFetcher
+from news_procesor.redis.repository import HeadlineRepository
 from news_procesor.utils.merge_tree_deltas import merge_tree_deltas
 from news_procesor.utils.result_query import result_query 
 
