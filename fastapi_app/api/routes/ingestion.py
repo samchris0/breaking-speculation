@@ -48,7 +48,7 @@ async def check_request(task_id: str):
             if data:
                 return {"status": "success", "data":data}
             else:
-                return {"status": "failure", "error": "Query completed but no data returned"}
+                return {"status": "complete", "error": "No markets for this search"}
         elif load_status == "FAILED":
             query_error = await redis_repository.get_error(task_id)
             return {"status": "failure", "error": query_error}

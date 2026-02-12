@@ -31,7 +31,7 @@ class IngestionRepository():
     
     def _deserialize_many(self, payloads) -> list[dict]:
         return [self._deserialize(p) for p in payloads]
-
+    
     def _tree_to_dict(self, tree: dict) -> dict:
         # Recursively turn defaultdicts into dicts for serialization
         if isinstance(tree, dict):

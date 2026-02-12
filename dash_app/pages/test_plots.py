@@ -149,6 +149,11 @@ def return_query(_, task_id, index, tree):
 
         return [f"Error in fetching data: {error}"], polling_disabled, index, tree
 
+    if status == "complete":
+        error = request.get("error", "Unknown error")
+
+        return [f"Search complete, no markets available for this keyword"], polling_disabled, index, tree
+
     deltas = request["data"]
     
     if deltas:
